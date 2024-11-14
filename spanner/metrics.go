@@ -234,16 +234,20 @@ func newBuiltinMetricsTracerFactory(ctx context.Context, dbpath string, metricsP
 		}
 		meterProvider = sdkmetric.NewMeterProvider(mpOptions...)
 
-		tracerFactory.enabled = true
-		tracerFactory.shutdown = func() { meterProvider.Shutdown(ctx) }
 	} else {
 		switch metricsProvider.(type) {
 		case noop.MeterProvider:
 			return tracerFactory, nil
 		default:
-			return tracerFactory, errors.New("unknown MetricsProvider type")
+			if mp, ok := metricsProvider.(*sdkmetric.MeterProvider); ok {
+				meterProvider = mp
+			} else {
+				return tracerFactory, errors.New("unknown MetricsProvider type")
+			}
 		}
 	}
+	tracerFactory.enabled = true
+	tracerFactory.shutdown = func() { meterProvider.Shutdown(ctx) }
 
 	// Create meter and instruments
 	meter := meterProvider.Meter(builtInMetricsMeterName, metric.WithInstrumentationVersion(internal.Version))

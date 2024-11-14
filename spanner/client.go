@@ -35,6 +35,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/noop"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
@@ -355,6 +356,11 @@ type ClientConfig struct {
 	//
 	// Default: false
 	DisableNativeMetrics bool
+
+	// NativeMetricsMeterProvider is used for native metrics.
+	// If DisableNativeMetrics = true, noop.NewMeterProvider is used,
+	// If DisableNativeMetrics = false, NativeMetricsMeterProvider is nil, built in meter provider is used.
+	NativeMetricsMeterProvider *sdkmetric.MeterProvider
 }
 
 type openTelemetryConfig struct {
@@ -505,6 +511,10 @@ func newClientWithConfig(ctx context.Context, database string, config ClientConf
 	if config.DisableNativeMetrics {
 		// Do not emit native metrics when DisableNativeMetrics is set
 		metricsProvider = noop.NewMeterProvider()
+	} else {
+		if config.NativeMetricsMeterProvider != nil {
+			metricsProvider = config.NativeMetricsMeterProvider
+		}
 	}
 
 	metricsTracerFactory, err := newBuiltinMetricsTracerFactory(ctx, database, metricsProvider, config.Compression, opts...)
